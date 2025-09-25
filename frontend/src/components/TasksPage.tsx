@@ -13,6 +13,25 @@ import {
   GET_ORGANIZATION_MEMBERS 
 } from '../graphql/queries';
 import type { Organization, Project, Task } from '../types';
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCorners,
+  useDroppable,
+} from '@dnd-kit/core';
+import type {
+  DragEndEvent,
+  DragStartEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface OrganizationMember {
   id: string;
@@ -21,6 +40,184 @@ interface OrganizationMember {
   role: string;
 }
 
+interface TaskCardProps {
+  task: Task;
+  user: any;
+  onEdit: (task: Task) => void;
+  onDelete: (taskId: string) => void;
+  isDragging?: boolean;
+}
+
+const TaskCard: React.FC<TaskCardProps> = ({ task, user, onEdit, onDelete, isDragging = false }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging: isSortableDragging,
+  } = useSortable({ id: task.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isSortableDragging ? 0.5 : 1,
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-3 hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing ${
+        isDragging ? 'rotate-3 shadow-xl' : ''
+      }`}
+    >
+      <div className="flex justify-between items-start mb-2">
+        <div className="flex-1">
+          <h3 className="text-sm font-medium text-gray-900 mb-1 line-clamp-2">{task.title}</h3>
+          {task.taskId && (
+            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded mb-2 inline-block">
+              #{task.taskId}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center space-x-1 ml-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(task);
+            }}
+            className="text-gray-400 hover:text-indigo-600 transition-colors duration-200 p-1"
+            title="Edit task"
+          >
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(task.taskId);
+            }}
+            className="text-gray-400 hover:text-red-600 transition-colors duration-200 p-1"
+            title="Delete task"
+          >
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      
+      <div>
+        <p className="text-xs text-gray-600 mb-3 line-clamp-3">{task.description}</p>
+        
+        <div className="space-y-2">
+          {task.assignee ? (
+            <div className="flex items-center text-xs">
+              <div className="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center mr-2">
+                <span className="text-xs font-medium text-indigo-700">
+                  {task.assignee.name.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <span className={`truncate ${task.assignee.email === user?.email ? 'font-medium text-indigo-600' : 'text-gray-600'}`}>
+                {task.assignee.name} {task.assignee.email === user?.email && '(You)'}
+              </span>
+            </div>
+          ) : (
+            <span className="text-xs italic text-gray-400">No assignee</span>
+          )}
+          
+          <div className="flex items-center justify-between text-xs text-gray-500">
+            {task.dueDate && (
+              <span className="bg-yellow-50 text-yellow-700 px-2 py-1 rounded">
+                Due: {formatDate(task.dueDate)}
+              </span>
+            )}
+            <span>{formatDate(task.createdAt)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+interface KanbanColumnProps {
+  title: string;
+  status: string;
+  tasks: Task[];
+  count: number;
+  color: string;
+  user: any;
+  onEdit: (task: Task) => void;
+  onDelete: (taskId: string) => void;
+}
+
+const KanbanColumn: React.FC<KanbanColumnProps> = ({ 
+  title, 
+  status, 
+  tasks, 
+  count, 
+  color, 
+  user, 
+  onEdit, 
+  onDelete 
+}) => {
+  const { isOver, setNodeRef } = useDroppable({
+    id: status,
+  });
+
+  const columnStyle = {
+    backgroundColor: isOver ? 'rgba(243, 244, 246, 0.8)' : undefined,
+    border: isOver ? '2px dashed #4f46e5' : undefined,
+  };
+
+  return (
+    <div 
+      ref={setNodeRef}
+      style={columnStyle}
+      className="bg-gray-50 rounded-lg p-4 min-h-[600px] flex flex-col transition-all duration-200"
+    >
+      <div className={`flex items-center justify-between mb-4 pb-2 border-b-2 ${color}`}>
+        <h3 className="font-semibold text-gray-900">{title}</h3>
+        <span className="bg-white px-2 py-1 rounded-full text-sm font-medium text-gray-600">
+          {count}
+        </span>
+      </div>
+      
+      <SortableContext items={tasks.map(task => task.id)} strategy={verticalListSortingStrategy}>
+        <div className="flex-1 overflow-y-auto">
+          {tasks.map((task) => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              user={user}
+              onEdit={onEdit}
+              onDelete={onDelete}
+            />
+          ))}
+          {tasks.length === 0 && (
+            <div className="text-center py-8 text-gray-400">
+              <div className="text-2xl mb-2">📝</div>
+              <p className="text-sm">No tasks</p>
+            </div>
+          )}
+        </div>
+      </SortableContext>
+    </div>
+  );
+};
+
 const TasksPage: React.FC = () => {
   const { orgSlug, projectSlug } = useParams<{ orgSlug: string; projectSlug: string }>();
   const { isAuthenticated, user, logout } = useAuth();
@@ -28,9 +225,18 @@ const TasksPage: React.FC = () => {
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [showCreateTask, setShowCreateTask] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
-  const [selectedAssignee, setSelectedAssignee] = useState<string>(''); // Changed to empty string for "No assignee"
+  const [selectedAssignee, setSelectedAssignee] = useState<string>('');
+  const [draggedTask, setDraggedTask] = useState<Task | null>(null);
+  const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const formRef = useRef<HTMLFormElement>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
 
   const { data: orgsData } = useQuery(GET_MY_ORGANIZATIONS, {
     skip: !isAuthenticated
@@ -71,17 +277,72 @@ const TasksPage: React.FC = () => {
     }
   }, [orgSlug, organizations, project]);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'TODO':
-        return 'bg-gray-100 text-gray-800';
-      case 'IN_PROGRESS':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'DONE':
-        return 'bg-green-100 text-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+  const tasksByStatus = {
+    TODO: tasks.filter(task => task.status === 'TODO'),
+    IN_PROGRESS: tasks.filter(task => task.status === 'IN_PROGRESS'),
+    DONE: tasks.filter(task => task.status === 'DONE'),
+  };
+
+  const taskCounts = {
+    all: tasks.length,
+    todo: tasksByStatus.TODO.length,
+    inProgress: tasksByStatus.IN_PROGRESS.length,
+    done: tasksByStatus.DONE.length
+  };
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    const task = tasks.find(t => t.id === active.id);
+    setDraggedTask(task || null);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (!over) {
+      setDraggedTask(null);
+      return;
     }
+
+    const activeTask = tasks.find(t => t.id === active.id);
+    if (!activeTask) {
+      setDraggedTask(null);
+      return;
+    }
+
+    // Determine new status based on drop target
+    let newStatus = activeTask.status;
+    
+    // Check if dropped on a column (droppable area)
+    if (over.id === 'TODO' || over.id === 'IN_PROGRESS' || over.id === 'DONE') {
+      newStatus = over.id as string;
+    } else {
+      // Check if dropped on a task in a different column
+      const overTask = tasks.find(t => t.id === over.id);
+      if (overTask && overTask.status !== activeTask.status) {
+        newStatus = overTask.status;
+      }
+    }
+
+    // Update task status if it changed
+    if (newStatus !== activeTask.status) {
+      try {
+        await updateTask({
+          variables: {
+            taskId: activeTask.taskId,
+            orgSlug: orgSlug!,
+            input: {
+              status: newStatus
+            }
+          }
+        });
+        refetchTasks();
+      } catch (error) {
+        console.error('Error updating task status:', error);
+      }
+    }
+
+    setDraggedTask(null);
   };
 
   const formatDate = (dateString: string) => {
@@ -92,15 +353,17 @@ const TasksPage: React.FC = () => {
     });
   };
 
-  const filteredTasks = selectedStatus === 'ALL' 
-    ? tasks 
-    : tasks.filter(task => task.status === selectedStatus);
-
-  const taskCounts = {
-    all: tasks.length,
-    todo: tasks.filter(t => t.status === 'TODO').length,
-    inProgress: tasks.filter(t => t.status === 'IN_PROGRESS').length,
-    done: tasks.filter(t => t.status === 'DONE').length
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'TODO':
+        return 'border-gray-300';
+      case 'IN_PROGRESS':
+        return 'border-yellow-300';
+      case 'DONE':
+        return 'border-green-300';
+      default:
+        return 'border-gray-300';
+    }
   };
 
   const handleCreateTask = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -117,13 +380,13 @@ const TasksPage: React.FC = () => {
             description: formData.get('description') as string,
             status: 'TODO',
             dueDate: formData.get('dueDate') as string || null,
-            assigneeEmail: selectedAssignee || null // Use selectedAssignee
+            assigneeEmail: selectedAssignee || null
           }
         }
       });
       
       setShowCreateTask(false);
-      setSelectedAssignee(''); // Reset assignee
+      setSelectedAssignee('');
       if (formRef.current) formRef.current.reset();
       refetchTasks();
     } catch (error) {
@@ -147,13 +410,13 @@ const TasksPage: React.FC = () => {
             description: formData.get('description') as string,
             status: formData.get('status') as string,
             dueDate: formData.get('dueDate') as string || null,
-            assigneeEmail: selectedAssignee // Use selectedAssignee
+            assigneeEmail: selectedAssignee
           }
         }
       });
       
       setEditingTask(null);
-      setSelectedAssignee(''); // Reset assignee
+      setSelectedAssignee('');
       if (formRef.current) formRef.current.reset();
       refetchTasks();
     } catch (error) {
@@ -179,31 +442,14 @@ const TasksPage: React.FC = () => {
 
   const handleEditTask = (task: Task) => {
     setEditingTask(task);
-    setSelectedAssignee(task.assignee?.email || ''); // Pre-fill current assignee
+    setSelectedAssignee(task.assignee?.email || '');
   };
 
   const handleCancel = () => {
     setShowCreateTask(false);
     setEditingTask(null);
-    setSelectedAssignee(''); // Reset assignee
+    setSelectedAssignee('');
     if (formRef.current) formRef.current.reset();
-  };
-
-  const quickUpdateTaskStatus = async (task: Task, newStatus: string) => {
-    try {
-      await updateTask({
-        variables: {
-          taskId: task.taskId,
-          orgSlug: orgSlug!,
-          input: {
-            status: newStatus
-          }
-        }
-      });
-      refetchTasks();
-    } catch (error) {
-      console.error('Error updating task status:', error);
-    }
   };
 
   if (!selectedOrg || !currentProject) {
@@ -283,154 +529,126 @@ const TasksPage: React.FC = () => {
             <h2 className="text-2xl font-bold text-gray-900">
               Tasks - {currentProject.name}
             </h2>
-            <p className="text-gray-600">Manage tasks for this project</p>
+            <p className="text-gray-600">Drag and drop tasks to update their status</p>
           </div>
-          <button
-            onClick={() => setShowCreateTask(true)}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition duration-200"
-          >
-            + New Task
-          </button>
-        </div>
-
-        {/* Status Filter Tabs */}
-        <div className="mb-6">
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
-              {[
-                { key: 'ALL', label: 'All Tasks', count: taskCounts.all },
-                { key: 'TODO', label: 'To Do', count: taskCounts.todo },
-                { key: 'IN_PROGRESS', label: 'In Progress', count: taskCounts.inProgress },
-                { key: 'DONE', label: 'Done', count: taskCounts.done }
-              ].map(({ key, label, count }) => (
-                <button
-                  key={key}
-                  onClick={() => setSelectedStatus(key)}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
-                    selectedStatus === key
-                      ? 'border-indigo-500 text-indigo-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  {label} ({count})
-                </button>
-              ))}
-            </nav>
-          </div>
-        </div>
-
-        {/* Tasks List */}
-        {filteredTasks.length > 0 ? (
-          <div className="space-y-4">
-            {filteredTasks.map((task) => (
-              <div key={task.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <h3 className="text-lg font-medium text-gray-900">{task.title}</h3>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
-                        {task.status.replace('_', ' ')}
-                      </span>
-                      {task.taskId && (
-                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                          #{task.taskId}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-gray-600 mb-3">{task.description}</p>
-                    <div className="flex items-center space-x-4 text-sm text-gray-500">
-                      {task.assignee ? (
-                        <div className="flex items-center">
-                          <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center mr-2">
-                            <span className="text-xs font-medium text-indigo-700">
-                              {task.assignee.name.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                          <span className={task.assignee.email === user?.email ? 'font-medium text-indigo-600' : ''}>
-                            {task.assignee.name} {task.assignee.email === user?.email && '(You)'}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="italic text-gray-400">No assignee</span>
-                      )}
-                      {task.dueDate && (
-                        <span>Due: {formatDate(task.dueDate)}</span>
-                      )}
-                      <span>Created: {formatDate(task.createdAt)}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2 ml-4">
-                    {/* Quick status update buttons */}
-                    {task.status !== 'TODO' && (
-                      <button
-                        onClick={() => quickUpdateTaskStatus(task, 'TODO')}
-                        className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded transition duration-200"
-                        title="Move to To Do"
-                      >
-                        To Do
-                      </button>
-                    )}
-                    {task.status !== 'IN_PROGRESS' && (
-                      <button
-                        onClick={() => quickUpdateTaskStatus(task, 'IN_PROGRESS')}
-                        className="text-xs bg-yellow-100 hover:bg-yellow-200 text-yellow-700 px-2 py-1 rounded transition duration-200"
-                        title="Move to In Progress"
-                      >
-                        In Progress
-                      </button>
-                    )}
-                    {task.status !== 'DONE' && (
-                      <button
-                        onClick={() => quickUpdateTaskStatus(task, 'DONE')}
-                        className="text-xs bg-green-100 hover:bg-green-200 text-green-700 px-2 py-1 rounded transition duration-200"
-                        title="Move to Done"
-                      >
-                        Done
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleEditTask(task)}
-                      className="text-gray-400 hover:text-indigo-600 transition-colors duration-200"
-                      title="Edit task"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => handleDeleteTask(task.taskId)}
-                      className="text-gray-400 hover:text-red-600 transition-colors duration-200"
-                      title="Delete task"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <div className="text-gray-400 text-6xl mb-4">✓</div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {selectedStatus === 'ALL' ? 'No tasks yet' : `No ${selectedStatus.toLowerCase().replace('_', ' ')} tasks`}
-            </h3>
-            <p className="text-gray-600 mb-4">
-              {selectedStatus === 'ALL' 
-                ? 'Get started by creating your first task' 
-                : `There are no tasks with status "${selectedStatus.toLowerCase().replace('_', ' ')}"`
-              }
-            </p>
-            {selectedStatus === 'ALL' && (
+          <div className="flex items-center space-x-3">
+            <div className="flex bg-gray-100 rounded-lg p-1">
               <button
-                onClick={() => setShowCreateTask(true)}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-medium transition duration-200"
+                onClick={() => setViewMode('kanban')}
+                className={`px-3 py-1 text-sm font-medium rounded-md transition duration-200 ${
+                  viewMode === 'kanban' 
+                    ? 'bg-white text-gray-900 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
               >
-                Create Task
+                Kanban
               </button>
-            )}
+              <button
+                onClick={() => setViewMode('list')}
+                className={`px-3 py-1 text-sm font-medium rounded-md transition duration-200 ${
+                  viewMode === 'list' 
+                    ? 'bg-white text-gray-900 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                List
+              </button>
+            </div>
+            <button
+              onClick={() => setShowCreateTask(true)}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition duration-200"
+            >
+              + New Task
+            </button>
+          </div>
+        </div>
+
+        {/* Task Summary */}
+        <div className="grid grid-cols-4 gap-4 mb-6">
+          <div className="bg-white p-4 rounded-lg border border-gray-200">
+            <div className="text-2xl font-bold text-gray-900">{taskCounts.all}</div>
+            <div className="text-sm text-gray-600">Total Tasks</div>
+          </div>
+          <div className="bg-white p-4 rounded-lg border border-gray-200">
+            <div className="text-2xl font-bold text-gray-600">{taskCounts.todo}</div>
+            <div className="text-sm text-gray-600">To Do</div>
+          </div>
+          <div className="bg-white p-4 rounded-lg border border-gray-200">
+            <div className="text-2xl font-bold text-yellow-600">{taskCounts.inProgress}</div>
+            <div className="text-sm text-gray-600">In Progress</div>
+          </div>
+          <div className="bg-white p-4 rounded-lg border border-gray-200">
+            <div className="text-2xl font-bold text-green-600">{taskCounts.done}</div>
+            <div className="text-sm text-gray-600">Done</div>
+          </div>
+        </div>
+
+        {/* Kanban Board */}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="grid grid-cols-3 gap-6">
+            <KanbanColumn
+              title="To Do"
+              status="TODO"
+              tasks={tasksByStatus.TODO}
+              count={taskCounts.todo}
+              color={getStatusColor('TODO')}
+              user={user}
+              onEdit={handleEditTask}
+              onDelete={handleDeleteTask}
+            />
+            
+            <KanbanColumn
+              title="In Progress"
+              status="IN_PROGRESS"
+              tasks={tasksByStatus.IN_PROGRESS}
+              count={taskCounts.inProgress}
+              color={getStatusColor('IN_PROGRESS')}
+              user={user}
+              onEdit={handleEditTask}
+              onDelete={handleDeleteTask}
+            />
+            
+            <KanbanColumn
+              title="Done"
+              status="DONE"
+              tasks={tasksByStatus.DONE}
+              count={taskCounts.done}
+              color={getStatusColor('DONE')}
+              user={user}
+              onEdit={handleEditTask}
+              onDelete={handleDeleteTask}
+            />
+          </div>
+
+          <DragOverlay>
+            {draggedTask ? (
+              <TaskCard
+                task={draggedTask}
+                user={user}
+                onEdit={() => {}}
+                onDelete={() => {}}
+                isDragging={true}
+              />
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+
+        {tasks.length === 0 && (
+          <div className="text-center py-12 mt-8">
+            <div className="text-gray-400 text-6xl mb-4">📋</div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks yet</h3>
+            <p className="text-gray-600 mb-4">Get started by creating your first task</p>
+            <button
+              onClick={() => setShowCreateTask(true)}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-medium transition duration-200"
+            >
+              Create Task
+            </button>
           </div>
         )}
       </div>
@@ -474,7 +692,6 @@ const TasksPage: React.FC = () => {
                   />
                 </div>
                 
-                {/* Assignee Dropdown */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Assignee (Optional)
