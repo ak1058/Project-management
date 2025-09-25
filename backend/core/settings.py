@@ -42,8 +42,11 @@ INSTALLED_APPS = [
     'corsheaders',
     # Our apps
     'organizations',
-    'projects',
+    'users',
+    'projects'
 ]
+
+AUTH_USER_MODEL = 'users.User'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -151,6 +154,7 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
     "http://localhost:3000",  
     "http://127.0.0.1:3000",
     
