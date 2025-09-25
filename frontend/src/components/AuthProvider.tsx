@@ -8,18 +8,32 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-
 const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(localStorage.getItem('authToken'));
+  const [token, setToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true); 
 
   useEffect(() => {
-    if (token) {
+    // Check for token and user on initial load
+    const savedToken = localStorage.getItem('authToken');
+    const savedUser = localStorage.getItem('authUser');
+    
+    if (savedToken && savedUser) {
+      setToken(savedToken);
+      setUser(JSON.parse(savedUser)); 
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (token && user) {
       localStorage.setItem('authToken', token);
+      localStorage.setItem('authUser', JSON.stringify(user));
     } else {
       localStorage.removeItem('authToken');
+      localStorage.removeItem('authUser');
     }
-  }, [token]);
+  }, [token, user]);
 
   const login = (newToken: string, newUser: User) => {
     setToken(newToken);
@@ -30,6 +44,7 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setToken(null);
     setUser(null);
     localStorage.removeItem('authToken');
+    localStorage.removeItem('authUser');
   };
 
   const isAuthenticated = !!token && !!user;
@@ -39,7 +54,8 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     token,
     login,
     logout,
-    isAuthenticated
+    isAuthenticated,
+    loading 
   };
 
   return (

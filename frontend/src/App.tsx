@@ -9,14 +9,31 @@ import ProjectsPage from './components/ProjectsPage';
 import TasksPage from './components/TasksPage';
 import { useAuth } from './hooks/useAuth';
 
-// Protected Route wrapper
+// Add a loading component
+const LoadingSpinner: React.FC = () => (
+  <div className="flex justify-center items-center min-h-screen">
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+  </div>
+);
+
+// Updated Protected Route wrapper
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
+  
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+  
   return isAuthenticated ? <>{children}</> : <Navigate to="/" replace />;
 };
 
 function AppContent() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
+
+  // Show loading spinner while checking authentication
+  if (loading) {
+    return <LoadingSpinner />;
+  }
 
   return (
     <Routes>

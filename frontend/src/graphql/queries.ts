@@ -8,7 +8,6 @@ export const GET_ORGANIZATIONS = gql`
       name
       slug
       contactEmail
-      createdAt
     }
   }
 `;
@@ -197,8 +196,8 @@ export const CREATE_TASK = gql`
 `;
 
 export const UPDATE_TASK = gql`
-  mutation UpdateTask($taskId: String!, $orgSlug: String!, $input: UpdateTaskInput!) {  # Remove projectSlug
-    updateTask(taskId: $taskId, orgSlug: $orgSlug, input: $input) {                    # Remove projectSlug
+  mutation UpdateTask($taskId: String!, $orgSlug: String!, $input: UpdateTaskInput!) {  
+    updateTask(taskId: $taskId, orgSlug: $orgSlug, input: $input) {                    
       task {
         id
         taskId
@@ -220,8 +219,8 @@ export const UPDATE_TASK = gql`
 `;
 
 export const DELETE_TASK = gql`
-  mutation DeleteTask($taskId: String!, $orgSlug: String!) {  # Remove projectSlug
-    deleteTask(taskId: $taskId, orgSlug: $orgSlug) {          # Remove projectSlug
+  mutation DeleteTask($taskId: String!, $orgSlug: String!) {  
+    deleteTask(taskId: $taskId, orgSlug: $orgSlug) {          
       success
       errors
     }
@@ -229,7 +228,6 @@ export const DELETE_TASK = gql`
 `;
 
 // getting org members 
-// src/graphql/queries.ts
 export const GET_ORGANIZATION_MEMBERS = gql`
   query GetOrganizationMembers($orgSlug: String!) {
     organizationMembers(orgSlug: $orgSlug) {  # This should match your resolver name
