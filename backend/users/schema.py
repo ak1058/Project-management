@@ -19,6 +19,16 @@ class OrganizationMemberType(DjangoObjectType):
     class Meta:
         model = OrganizationMember
         fields = ('id', 'user', 'organization', 'role')
+    
+    # ADD THESE RESOLVERS TO GET USER DETAILS
+    name = graphene.String()
+    email = graphene.String()
+    
+    def resolve_name(self, info):
+        return self.user.name
+    
+    def resolve_email(self, info):
+        return self.user.email
 
 class RegisterUserInput(graphene.InputObjectType):
     email = graphene.String(required=True)
@@ -99,6 +109,7 @@ class LoginUser(graphene.Mutation):
 class Query(graphene.ObjectType):
     me = graphene.Field(UserType)
     my_organizations = graphene.List(OrganizationType)  
+    organization_members = graphene.List(OrganizationMemberType, org_slug=graphene.String(required=True))  # ADD THIS
     
     @login_required
     def resolve_me(self, info):
@@ -109,6 +120,16 @@ class Query(graphene.ObjectType):
         user = info.context.user
         return [member.organization for member in 
                 OrganizationMember.objects.filter(user=user)]
+    
+    # ADD THIS RESOLVER
+    @login_required
+    def resolve_organization_members(self, info, org_slug):
+        user = info.context.user
+        # Check if user has access to this organization
+        if not OrganizationMember.objects.filter(user=user, organization__slug=org_slug).exists():
+            raise Exception("You don't have access to this organization")
+        
+        return OrganizationMember.objects.filter(organization__slug=org_slug).select_related('user')
 
 class Mutation(graphene.ObjectType):
     register_user = RegisterUser.Field()

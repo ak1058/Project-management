@@ -28,11 +28,24 @@ export interface Project {
 
 export interface Task {
   id: string;
+  taskId: string;  
   title: string;
   description: string;
-  status: 'TODO' | 'IN_PROGRESS' | 'DONE';
-  assignee: User;
+  status: string;
+  assignee?: {
+    id: string;
+    name: string;
+    email: string;
+  };
   dueDate?: string;
+  createdAt: string;
+}
+
+export interface TaskComment {
+  id: string;
+  content: string;
+  author: User;
+  timestamp: string;
 }
 
 export interface AuthResponse {

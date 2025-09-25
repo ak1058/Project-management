@@ -3,7 +3,6 @@ from django.utils.text import slugify
 from organizations.models import Organization
 from users.models import User
 
-# projects/models.py
 class Project(models.Model):
     STATUS_CHOICES = [
         ('ACTIVE', 'Active'),
@@ -41,6 +40,7 @@ class Task(models.Model):
     ]
     
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    task_id = models.CharField(max_length=50, unique=True)  
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=TASK_STATUS_CHOICES, default='TODO')
@@ -49,16 +49,24 @@ class Task(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
-        return self.title
+        return f"{self.task_id} - {self.title}"
     
-    @property
-    def task_id(self):
-        """Generate project-specific task ID like BLIB-1, BLIB-2, etc."""
-
-        project_tasks = Task.objects.filter(project=self.project).order_by('id')
-
-        task_number = list(project_tasks).index(self) + 1
-        return f"{self.project.slug}-{task_number}"
+    def save(self, *args, **kwargs):
+        if not self.task_id:
+            # Generate task_id like "PROJECT-1", "PROJECT-2", etc.
+            last_task = Task.objects.filter(project=self.project).order_by('-id').first()
+            last_number = 0
+            if last_task:
+                try:
+                    # Extract number from existing task_id
+                    last_number = int(last_task.task_id.split('-')[1])
+                except (IndexError, ValueError):
+                    # If parsing fails, count existing tasks
+                    last_number = Task.objects.filter(project=self.project).count()
+            
+            self.task_id = f"{self.project.slug.upper()}-{last_number + 1}"
+        
+        super().save(*args, **kwargs)
 
 class TaskComment(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE)

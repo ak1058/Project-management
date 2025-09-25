@@ -56,6 +56,45 @@ export const GET_PROJECT = gql`
   }
 `;
 
+//  task-related queries
+export const GET_TASKS = gql`
+  query GetTasks($orgSlug: String!, $projectSlug: String!) {
+    tasks(orgSlug: $orgSlug, projectSlug: $projectSlug) {
+      id
+      taskId
+      title
+      description
+      status
+      assignee {
+        id
+        name
+        email
+      }
+      dueDate
+      createdAt
+    }
+  }
+`;
+
+export const GET_TASK = gql`
+  query GetTask($orgSlug: String!, $taskId: String!) {  # Remove projectSlug
+    task(orgSlug: $orgSlug, taskId: $taskId) {          # Remove projectSlug
+      id
+      taskId
+      title
+      description
+      status
+      assignee {
+        id
+        name
+        email
+      }
+      dueDate
+      createdAt
+    }
+  }
+`;
+
 export const REGISTER_USER = gql`
   mutation RegisterUser($input: RegisterUserInput!) {
     registerUser(input: $input) {
@@ -129,6 +168,75 @@ export const DELETE_PROJECT = gql`
     deleteProject(projectSlug: $projectSlug, organizationSlug: $organizationSlug) {
       success
       errors
+    }
+  }
+`;
+
+// task mutations
+export const CREATE_TASK = gql`
+  mutation CreateTask($input: TaskInput!) {
+    createTask(input: $input) {
+      task {
+        id
+        taskId
+        title
+        description
+        status
+        assignee {
+          id
+          name
+          email
+        }
+        dueDate
+        createdAt
+      }
+      success
+      errors
+    }
+  }
+`;
+
+export const UPDATE_TASK = gql`
+  mutation UpdateTask($taskId: String!, $orgSlug: String!, $input: UpdateTaskInput!) {  # Remove projectSlug
+    updateTask(taskId: $taskId, orgSlug: $orgSlug, input: $input) {                    # Remove projectSlug
+      task {
+        id
+        taskId
+        title
+        description
+        status
+        assignee {
+          id
+          name
+          email
+        }
+        dueDate
+        createdAt
+      }
+      success
+      errors
+    }
+  }
+`;
+
+export const DELETE_TASK = gql`
+  mutation DeleteTask($taskId: String!, $orgSlug: String!) {  # Remove projectSlug
+    deleteTask(taskId: $taskId, orgSlug: $orgSlug) {          # Remove projectSlug
+      success
+      errors
+    }
+  }
+`;
+
+// getting org members 
+// src/graphql/queries.ts
+export const GET_ORGANIZATION_MEMBERS = gql`
+  query GetOrganizationMembers($orgSlug: String!) {
+    organizationMembers(orgSlug: $orgSlug) {  # This should match your resolver name
+      id
+      name
+      email
+      role
     }
   }
 `;

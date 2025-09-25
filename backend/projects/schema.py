@@ -3,8 +3,9 @@ from graphene_django import DjangoObjectType
 from graphql_jwt.decorators import login_required
 from .models import Project, Task, TaskComment
 from organizations.models import Organization
-from users.models import OrganizationMember
+from users.models import User, OrganizationMember
 
+# Project Type
 class ProjectType(DjangoObjectType):
     task_count = graphene.Int()
     completed_tasks = graphene.Int()
@@ -19,21 +20,19 @@ class ProjectType(DjangoObjectType):
     def resolve_completed_tasks(self, info):
         return self.task_set.filter(status='DONE').count()
 
+# Task Type - Now task_id is a direct field
 class TaskType(DjangoObjectType):
-    task_id = graphene.String() 
-    
     class Meta:
         model = Task
-        fields = ("id", "title", "description", "status", "assignee", "due_date", "created_at")
-    
-    def resolve_task_id(self, info):
-        return self.task_id 
+        fields = ("id", "task_id", "title", "description", "status", "assignee", "due_date", "created_at")
 
+# Task Comment Type
 class TaskCommentType(DjangoObjectType):
     class Meta:
         model = TaskComment
         fields = ("id", "content", "author", "timestamp")
 
+# Date Scalar
 class Date(graphene.Scalar):
     @staticmethod
     def serialize(date):
@@ -49,6 +48,7 @@ class Date(graphene.Scalar):
     def parse_value(value):
         return value
 
+# Project Input Types
 class ProjectInput(graphene.InputObjectType):
     organization_slug = graphene.String(required=True)
     name = graphene.String(required=True)
@@ -64,6 +64,24 @@ class UpdateProjectInput(graphene.InputObjectType):
     status = graphene.String()
     due_date = Date()
 
+# Task Input Types
+class TaskInput(graphene.InputObjectType):
+    organization_slug = graphene.String(required=True)
+    project_slug = graphene.String(required=True)
+    title = graphene.String(required=True)
+    description = graphene.String()
+    status = graphene.String()
+    due_date = Date()
+    assignee_email = graphene.String()  # Optional field
+
+class UpdateTaskInput(graphene.InputObjectType):
+    title = graphene.String()
+    description = graphene.String()
+    status = graphene.String()
+    due_date = Date()
+    assignee_email = graphene.String()  # Optional field
+
+# Project Mutations (Unchanged)
 class CreateProject(graphene.Mutation):
     class Arguments:
         input = ProjectInput(required=True)
@@ -198,9 +216,179 @@ class DeleteProject(graphene.Mutation):
         except Exception as e:
             return DeleteProject(success=False, errors=[str(e)])
 
+# Task Mutations (SIMPLIFIED!)
+class CreateTask(graphene.Mutation):
+    class Arguments:
+        input = TaskInput(required=True)
+    
+    task = graphene.Field(TaskType)
+    success = graphene.Boolean()
+    errors = graphene.List(graphene.String)
+    
+    @login_required
+    def mutate(self, info, input):
+        try:
+            user = info.context.user
+            
+            # Check if user belongs to the organization
+            try:
+                organization_member = OrganizationMember.objects.get(
+                    user=user,
+                    organization__slug=input.organization_slug
+                )
+                organization = organization_member.organization
+            except OrganizationMember.DoesNotExist:
+                return CreateTask(success=False, errors=["You don't have access to this organization"])
+            
+            # Get the project
+            try:
+                project = Project.objects.get(
+                    organization=organization,
+                    slug=input.project_slug
+                )
+            except Project.DoesNotExist:
+                return CreateTask(success=False, errors=["Project not found"])
+            
+            # Handle assignee by email - OPTIONAL (can be null)
+            assignee = None
+            if input.assignee_email:
+                try:
+                    # Find user by email and verify they are member of the same organization
+                    assignee_user = User.objects.get(email=input.assignee_email)
+                    assignee_member = OrganizationMember.objects.get(
+                        user=assignee_user,
+                        organization=organization
+                    )
+                    assignee = assignee_user
+                except User.DoesNotExist:
+                    return CreateTask(success=False, errors=["User with this email not found"])
+                except OrganizationMember.DoesNotExist:
+                    return CreateTask(success=False, errors=["Assignee must be a member of the organization"])
+            
+            # Create task - task_id will be auto-generated in save()
+            task = Task.objects.create(
+                project=project,
+                title=input.title,
+                description=input.description or "",
+                status=input.status or "TODO",
+                due_date=input.due_date,
+                assignee=assignee
+            )
+            return CreateTask(task=task, success=True, errors=[])
+        except Exception as e:
+            return CreateTask(success=False, errors=[str(e)])
+
+class UpdateTask(graphene.Mutation):
+    class Arguments:
+        task_id = graphene.String(required=True)  # This is the actual task_id like "DB-1"
+        org_slug = graphene.String(required=True)
+        input = UpdateTaskInput(required=True)
+    
+    task = graphene.Field(TaskType)
+    success = graphene.Boolean()
+    errors = graphene.List(graphene.String)
+    
+    @login_required
+    def mutate(self, info, task_id, org_slug, input):
+        try:
+            user = info.context.user
+            
+            # Check if user belongs to the organization
+            try:
+                organization_member = OrganizationMember.objects.get(
+                    user=user,
+                    organization__slug=org_slug
+                )
+                organization = organization_member.organization
+            except OrganizationMember.DoesNotExist:
+                return UpdateTask(success=False, errors=["You don't have access to this organization"])
+            
+            # SIMPLE: Get the task directly by task_id and verify it belongs to user's organization
+            try:
+                task = Task.objects.get(
+                    task_id=task_id.upper(),  # Use the stored task_id field
+                    project__organization=organization  # Ensure task belongs to user's org
+                )
+            except Task.DoesNotExist:
+                return UpdateTask(success=False, errors=["Task not found"])
+            
+            # Handle assignee update by email - OPTIONAL
+            if input.assignee_email is not None:
+                if input.assignee_email == "":  # Allow clearing assignee
+                    task.assignee = None
+                else:
+                    try:
+                        # Find user by email and verify they are member of the same organization
+                        assignee_user = User.objects.get(email=input.assignee_email)
+                        assignee_member = OrganizationMember.objects.get(
+                            user=assignee_user,
+                            organization=organization
+                        )
+                        task.assignee = assignee_user
+                    except User.DoesNotExist:
+                        return UpdateTask(success=False, errors=["User with this email not found"])
+                    except OrganizationMember.DoesNotExist:
+                        return UpdateTask(success=False, errors=["Assignee must be a member of the organization"])
+            
+            # Update other fields
+            if input.title is not None:
+                task.title = input.title
+            if input.description is not None:
+                task.description = input.description
+            if input.status is not None:
+                task.status = input.status
+            if input.due_date is not None:
+                task.due_date = input.due_date
+            
+            task.save()
+            return UpdateTask(task=task, success=True, errors=[])
+        except Exception as e:
+            return UpdateTask(success=False, errors=[str(e)])
+
+class DeleteTask(graphene.Mutation):
+    class Arguments:
+        task_id = graphene.String(required=True)  # This is the actual task_id like "DB-1"
+        org_slug = graphene.String(required=True)
+    
+    success = graphene.Boolean()
+    errors = graphene.List(graphene.String)
+    
+    @login_required
+    def mutate(self, info, task_id, org_slug):
+        try:
+            user = info.context.user
+            
+            # Check if user belongs to the organization
+            try:
+                organization_member = OrganizationMember.objects.get(
+                    user=user,
+                    organization__slug=org_slug
+                )
+                organization = organization_member.organization
+            except OrganizationMember.DoesNotExist:
+                return DeleteTask(success=False, errors=["You don't have access to this organization"])
+            
+            # SIMPLE: Get the task directly by task_id
+            try:
+                task = Task.objects.get(
+                    task_id=task_id.upper(),
+                    project__organization=organization
+                )
+            except Task.DoesNotExist:
+                return DeleteTask(success=False, errors=["Task not found"])
+            
+            # Delete the task
+            task.delete()
+            return DeleteTask(success=True, errors=[])
+        except Exception as e:
+            return DeleteTask(success=False, errors=[str(e)])
+
+# Query Class (SIMPLIFIED!)
 class Query(graphene.ObjectType):
     projects = graphene.List(ProjectType, org_slug=graphene.String(required=True))
     project = graphene.Field(ProjectType, org_slug=graphene.String(required=True), project_slug=graphene.String(required=True))
+    tasks = graphene.List(TaskType, org_slug=graphene.String(required=True), project_slug=graphene.String(required=True))
+    task = graphene.Field(TaskType, org_slug=graphene.String(required=True), task_id=graphene.String(required=True))
     
     @login_required
     def resolve_projects(self, info, org_slug):
@@ -221,8 +409,44 @@ class Query(graphene.ObjectType):
             return Project.objects.get(organization__slug=org_slug, slug=project_slug)
         except Project.DoesNotExist:
             return None
+    
+    @login_required
+    def resolve_tasks(self, info, org_slug, project_slug):
+        user = info.context.user
+        # Check if user has access to this organization
+        if not OrganizationMember.objects.filter(user=user, organization__slug=org_slug).exists():
+            raise Exception("You don't have access to this organization")
+        
+        try:
+            project = Project.objects.get(organization__slug=org_slug, slug=project_slug)
+            return Task.objects.filter(project=project)
+        except Project.DoesNotExist:
+            return []
+    
+    @login_required
+    def resolve_task(self, info, org_slug, task_id):
+        user = info.context.user
+        # Check if user has access to this organization
+        if not OrganizationMember.objects.filter(user=user, organization__slug=org_slug).exists():
+            raise Exception("You don't have access to this organization")
+        
+        try:
+            # SIMPLE: Get task directly by task_id and organization
+            return Task.objects.get(
+                task_id=task_id.upper(),
+                project__organization__slug=org_slug
+            )
+        except Task.DoesNotExist:
+            return None
 
+# Mutation Class
 class Mutation(graphene.ObjectType):
     create_project = CreateProject.Field()
     update_project = UpdateProject.Field()
     delete_project = DeleteProject.Field()
+    create_task = CreateTask.Field()
+    update_task = UpdateTask.Field()
+    delete_task = DeleteTask.Field()
+
+# Schema
+schema = graphene.Schema(query=Query, mutation=Mutation)
