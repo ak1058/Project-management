@@ -17,7 +17,7 @@ Authentication is handled using **JWT tokens**, and **WebSockets** power real-ti
 **Models:**  
 - `Organization`: Core organization entity  
 
-📖 API Documentation → [backend/organization/README.md](./organization/README.md)  
+📖 API Documentation → [backend/organizations/README.md](./organizations/README.md)  
 
 ---
 
