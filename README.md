@@ -9,6 +9,9 @@ This system supports **organizations, projects, and task management** with a cle
 
 ---
 
+## 📜 API Documentation  
+
+👉 [See Backend API Docs](./backend/README.md)
 ## 🚀 Features  
 
 - 👥 **Organizations & Users**  
@@ -81,7 +84,7 @@ This will spin up:
 
 ---
 
-## 📸 Screenshots (Optional)  
+## 📸 Screenshots
 
 - **Organization Dashboard**
   <img width="1816" height="778" alt="image" src="https://github.com/user-attachments/assets/2c322da6-3d7c-441c-8669-a3b928163231" />
@@ -101,16 +104,10 @@ This will spin up:
   
 
 ---
+## 📸 Demo Video link:
+[Watch the demo video](https://amitkumar.neetorecord.com/watch/041b5cc4679de4144fe9)
 
-## 🤝 Contributing  
-
-1. Fork the repo  
-2. Create a feature branch  
-3. Commit changes  
-4. Open a Pull Request 🚀  
+ 
 
 ---
 
-## 📜 API Documentation  
-
-👉 [See Backend API Docs](./backend/README.md)
