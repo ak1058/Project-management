@@ -83,11 +83,22 @@ This will spin up:
 
 ## 📸 Screenshots (Optional)  
 
-- **Organization Dashboard**  
-- **Projects Page**  
-- **Kanban & List Task Views**  
+- **Organization Dashboard**
+  <img width="1816" height="778" alt="image" src="https://github.com/user-attachments/assets/2c322da6-3d7c-441c-8669-a3b928163231" />
 
-*(You can add screenshots here for a better visual overview.)*  
+- **Projects Page**
+- <img width="1919" height="825" alt="image" src="https://github.com/user-attachments/assets/8b745297-1594-4fc9-aa8f-989e7726bee0" />
+
+- **Kanban & List Task Views**
+  <img width="1905" height="846" alt="image" src="https://github.com/user-attachments/assets/242a661c-4e13-4361-b651-975278394d84" />
+  <img width="1886" height="829" alt="image" src="https://github.com/user-attachments/assets/d338dc4e-b3e1-4d35-a510-26370b166a84" />
+
+
+- **Comments (Real time on tasks)**
+<img width="978" height="832" alt="image" src="https://github.com/user-attachments/assets/79080992-f461-4072-8704-ab52684d04bc" />
+
+
+  
 
 ---
 
