@@ -44,7 +44,11 @@ export interface Task {
 export interface TaskComment {
   id: string;
   content: string;
-  author: User;
+  author: {
+    id: string;
+    name: string;
+    email: string;
+  }
   timestamp: string;
 }
 

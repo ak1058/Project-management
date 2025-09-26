@@ -1,4 +1,3 @@
-# core/schema.py
 import graphene
 import graphql_jwt
 from organizations.schema import Query as OrganizationQuery, Mutation as OrganizationMutation

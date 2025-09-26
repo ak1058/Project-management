@@ -46,9 +46,11 @@ interface TaskCardProps {
   onEdit: (task: Task) => void;
   onDelete: (taskId: string) => void;
   isDragging?: boolean;
+  orgSlug: string;
+  projectSlug: string;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ task, user, onEdit, onDelete, isDragging = false }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ task, user, onEdit, onDelete, isDragging = false, orgSlug, projectSlug }) => {
   const {
     attributes,
     listeners,
@@ -84,7 +86,13 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, user, onEdit, onDelete, isDra
     >
       <div className="flex justify-between items-start mb-2">
         <div className="flex-1">
-          <h3 className="text-sm font-medium text-gray-900 mb-1 line-clamp-2">{task.title}</h3>
+          <Link 
+            to={`/${orgSlug}/projects/${projectSlug}/tasks/${task.taskId}`}
+            className="text-sm font-medium text-gray-900 mb-1 line-clamp-2 hover:text-indigo-600 transition duration-200 block"
+            onClick={(e) => e.stopPropagation()} 
+          >
+            {task.title}
+          </Link>
           {task.taskId && (
             <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded mb-2 inline-block">
               #{task.taskId}
@@ -161,6 +169,8 @@ interface KanbanColumnProps {
   user: any;
   onEdit: (task: Task) => void;
   onDelete: (taskId: string) => void;
+  orgSlug: string;
+  projectSlug: string;
 }
 
 const KanbanColumn: React.FC<KanbanColumnProps> = ({ 
@@ -171,7 +181,9 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   color, 
   user, 
   onEdit, 
-  onDelete 
+  onDelete,
+  orgSlug,
+  projectSlug
 }) => {
   const { isOver, setNodeRef } = useDroppable({
     id: status,
@@ -204,6 +216,8 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
               user={user}
               onEdit={onEdit}
               onDelete={onDelete}
+              orgSlug={orgSlug}
+              projectSlug={projectSlug}
             />
           ))}
           {tasks.length === 0 && (
@@ -228,9 +242,11 @@ interface TabViewProps {
     inProgress: number;
     done: number;
   };
+  orgSlug: string;
+  projectSlug: string;
 }
 
-const TabView: React.FC<TabViewProps> = ({ tasks, user, onEdit, onDelete, taskCounts }) => {
+const TabView: React.FC<TabViewProps> = ({ tasks, user, onEdit, onDelete, taskCounts, orgSlug, projectSlug }) => {
   const [activeTab, setActiveTab] = useState<'TODO' | 'IN_PROGRESS' | 'DONE'>('TODO');
 
   const tasksByStatus = {
@@ -327,7 +343,12 @@ const TabView: React.FC<TabViewProps> = ({ tasks, user, onEdit, onDelete, taskCo
               <div key={task.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-all duration-200">
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex-1">
-                    <h3 className="text-sm font-medium text-gray-900 mb-1 line-clamp-2">{task.title}</h3>
+                    <Link 
+                      to={`/${orgSlug}/projects/${projectSlug}/tasks/${task.taskId}`}
+                      className="text-sm font-medium text-gray-900 mb-1 line-clamp-2 hover:text-indigo-600 transition duration-200 block"
+                    >
+                      {task.title}
+                    </Link>
                     {task.taskId && (
                       <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded mb-2 inline-block">
                         #{task.taskId}
@@ -794,6 +815,8 @@ const TasksPage: React.FC = () => {
                   user={user}
                   onEdit={handleEditTask}
                   onDelete={handleDeleteTask}
+                  orgSlug={orgSlug!}
+                  projectSlug={projectSlug!}
                 />
                 
                 <KanbanColumn
@@ -805,6 +828,8 @@ const TasksPage: React.FC = () => {
                   user={user}
                   onEdit={handleEditTask}
                   onDelete={handleDeleteTask}
+                  orgSlug={orgSlug!}
+                  projectSlug={projectSlug!}
                 />
                 
                 <KanbanColumn
@@ -816,6 +841,8 @@ const TasksPage: React.FC = () => {
                   user={user}
                   onEdit={handleEditTask}
                   onDelete={handleDeleteTask}
+                  orgSlug={orgSlug!}
+                  projectSlug={projectSlug!}
                 />
               </div>
 
@@ -827,6 +854,8 @@ const TasksPage: React.FC = () => {
                     onEdit={() => {}}
                     onDelete={() => {}}
                     isDragging={true}
+                    orgSlug={orgSlug!}
+                    projectSlug={projectSlug!}
                   />
                 ) : null}
               </DragOverlay>
@@ -840,6 +869,8 @@ const TasksPage: React.FC = () => {
             onEdit={handleEditTask}
             onDelete={handleDeleteTask}
             taskCounts={taskCounts}
+            orgSlug={orgSlug!}
+            projectSlug={projectSlug!}
           />
         )}
 

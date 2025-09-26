@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     # Third party apps
     'graphene_django',
     'corsheaders',
+    'channels',
     # Our apps
     'organizations',
     'users',
@@ -161,3 +162,12 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+
+ASGI_APPLICATION = 'core.asgi.application'
+
+# Channels layer configuration (in-memory for development)
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer'
+    }
+}

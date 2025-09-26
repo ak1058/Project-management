@@ -1,6 +1,9 @@
 import graphene
 from graphene_django import DjangoObjectType
 from graphql_jwt.decorators import login_required
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+
 from .models import Project, Task, TaskComment
 from organizations.models import Organization
 from users.models import User, OrganizationMember
@@ -20,7 +23,7 @@ class ProjectType(DjangoObjectType):
     def resolve_completed_tasks(self, info):
         return self.task_set.filter(status='DONE').count()
 
-# Task Type - Now task_id is a direct field
+# Task Type
 class TaskType(DjangoObjectType):
     class Meta:
         model = Task
@@ -30,7 +33,7 @@ class TaskType(DjangoObjectType):
 class TaskCommentType(DjangoObjectType):
     class Meta:
         model = TaskComment
-        fields = ("id", "content", "author", "timestamp")
+        fields = ("id", "content", "author", "timestamp", "task")
 
 # Date Scalar
 class Date(graphene.Scalar):
@@ -81,7 +84,7 @@ class UpdateTaskInput(graphene.InputObjectType):
     due_date = Date()
     assignee_email = graphene.String()  # Optional field
 
-# Project Mutations (Unchanged)
+# Project Mutations
 class CreateProject(graphene.Mutation):
     class Arguments:
         input = ProjectInput(required=True)
@@ -216,7 +219,7 @@ class DeleteProject(graphene.Mutation):
         except Exception as e:
             return DeleteProject(success=False, errors=[str(e)])
 
-# Task Mutations (SIMPLIFIED!)
+# Task Mutations
 class CreateTask(graphene.Mutation):
     class Arguments:
         input = TaskInput(required=True)
@@ -383,12 +386,80 @@ class DeleteTask(graphene.Mutation):
         except Exception as e:
             return DeleteTask(success=False, errors=[str(e)])
 
-# Query Class (SIMPLIFIED!)
+# Task Comment Mutation
+class CreateTaskComment(graphene.Mutation):
+    class Arguments:
+        org_slug = graphene.String(required=True)
+        task_id = graphene.String(required=True)
+        content = graphene.String(required=True)
+    
+    success = graphene.Boolean()
+    errors = graphene.List(graphene.String)
+    comment = graphene.Field(TaskCommentType)
+    
+    @login_required
+    def mutate(self, info, org_slug, task_id, content):
+        try:
+            user = info.context.user
+            
+            # Check if user belongs to the organization
+            try:
+                organization_member = OrganizationMember.objects.get(
+                    user=user,
+                    organization__slug=org_slug
+                )
+                organization = organization_member.organization
+            except OrganizationMember.DoesNotExist:
+                return CreateTaskComment(success=False, errors=["You don't have access to this organization"])
+            
+            # Get the task
+            try:
+                task = Task.objects.get(
+                    task_id=task_id.upper(),
+                    project__organization=organization
+                )
+            except Task.DoesNotExist:
+                return CreateTaskComment(success=False, errors=["Task not found"])
+            
+            # Create comment
+            comment = TaskComment.objects.create(
+                task=task,
+                content=content,
+                author=user
+            )
+            
+            # Send real-time update via WebSocket
+            try:
+                channel_layer = get_channel_layer()
+                room_group_name = f'task_comments_{org_slug}_{task_id.upper()}'
+                
+                async_to_sync(channel_layer.group_send)(
+                    room_group_name,
+                    {
+                        'type': 'comment_message',
+                        'id': comment.id,
+                        'content': comment.content,
+                        'author_email': user.email,
+                        'author_id': user.id,
+                        'timestamp': comment.timestamp.isoformat(),
+                        'task_id': task_id.upper()
+                    }
+                )
+            except Exception as e:
+                # WebSocket might not be available, but comment is still saved
+                print(f"WebSocket error: {e}")
+            
+            return CreateTaskComment(success=True, errors=[], comment=comment)
+        except Exception as e:
+            return CreateTaskComment(success=False, errors=[str(e)])
+
+# Query Class
 class Query(graphene.ObjectType):
     projects = graphene.List(ProjectType, org_slug=graphene.String(required=True))
     project = graphene.Field(ProjectType, org_slug=graphene.String(required=True), project_slug=graphene.String(required=True))
     tasks = graphene.List(TaskType, org_slug=graphene.String(required=True), project_slug=graphene.String(required=True))
     task = graphene.Field(TaskType, org_slug=graphene.String(required=True), task_id=graphene.String(required=True))
+    task_comments = graphene.List(TaskCommentType, org_slug=graphene.String(required=True), task_id=graphene.String(required=True))
     
     @login_required
     def resolve_projects(self, info, org_slug):
@@ -438,6 +509,22 @@ class Query(graphene.ObjectType):
             )
         except Task.DoesNotExist:
             return None
+    
+    @login_required
+    def resolve_task_comments(self, info, org_slug, task_id):
+        user = info.context.user
+        # Check if user has access to this organization
+        if not OrganizationMember.objects.filter(user=user, organization__slug=org_slug).exists():
+            raise Exception("You don't have access to this organization")
+        
+        try:
+            task = Task.objects.get(
+                task_id=task_id.upper(),
+                project__organization__slug=org_slug
+            )
+            return TaskComment.objects.filter(task=task).order_by('timestamp')
+        except Task.DoesNotExist:
+            return []
 
 # Mutation Class
 class Mutation(graphene.ObjectType):
@@ -447,6 +534,7 @@ class Mutation(graphene.ObjectType):
     create_task = CreateTask.Field()
     update_task = UpdateTask.Field()
     delete_task = DeleteTask.Field()
+    create_task_comment = CreateTaskComment.Field()
 
 # Schema
 schema = graphene.Schema(query=Query, mutation=Mutation)

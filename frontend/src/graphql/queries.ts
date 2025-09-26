@@ -238,3 +238,38 @@ export const GET_ORGANIZATION_MEMBERS = gql`
     }
   }
 `;
+
+// Task Comments Queries
+export const GET_TASK_COMMENTS = gql`
+  query GetTaskComments($orgSlug: String!, $taskId: String!) {
+    taskComments(orgSlug: $orgSlug, taskId: $taskId) {
+      id
+      content
+      author {
+        id
+        name
+        email
+      }
+      timestamp
+    }
+  }
+`;
+
+export const CREATE_TASK_COMMENT = gql`
+  mutation CreateTaskComment($orgSlug: String!, $taskId: String!, $content: String!) {
+    createTaskComment(orgSlug: $orgSlug, taskId: $taskId, content: $content) {
+      success
+      errors
+      comment {
+        id
+        content
+        author {
+          id
+          name
+          email
+        }
+        timestamp
+      }
+    }
+  }
+`;

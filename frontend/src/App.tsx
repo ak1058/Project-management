@@ -8,6 +8,7 @@ import OrganizationDashboard from './components/OrganizationDashboard';
 import ProjectsPage from './components/ProjectsPage';
 import TasksPage from './components/TasksPage';
 import { useAuth } from './hooks/useAuth';
+import TaskDetailPage from './components/TaskDetailPage';
 
 // Add a loading component
 const LoadingSpinner: React.FC = () => (
@@ -66,6 +67,14 @@ function AppContent() {
         element={
           <ProtectedRoute>
             <TasksPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/:orgSlug/projects/:projectSlug/tasks/:taskId" 
+        element={
+          <ProtectedRoute>
+            <TaskDetailPage  />
           </ProtectedRoute>
         } 
       />
