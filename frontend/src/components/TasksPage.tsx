@@ -218,6 +218,192 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   );
 };
 
+interface TabViewProps {
+  tasks: Task[];
+  user: any;
+  onEdit: (task: Task) => void;
+  onDelete: (taskId: string) => void;
+  taskCounts: {
+    todo: number;
+    inProgress: number;
+    done: number;
+  };
+}
+
+const TabView: React.FC<TabViewProps> = ({ tasks, user, onEdit, onDelete, taskCounts }) => {
+  const [activeTab, setActiveTab] = useState<'TODO' | 'IN_PROGRESS' | 'DONE'>('TODO');
+
+  const tasksByStatus = {
+    TODO: tasks.filter(task => task.status === 'TODO'),
+    IN_PROGRESS: tasks.filter(task => task.status === 'IN_PROGRESS'),
+    DONE: tasks.filter(task => task.status === 'DONE'),
+  };
+
+  const tabs = [
+    { 
+      id: 'TODO' as const, 
+      name: 'To Do', 
+      count: taskCounts.todo, 
+      color: 'text-gray-600 border-gray-300 hover:border-gray-400' 
+    },
+    { 
+      id: 'IN_PROGRESS' as const, 
+      name: 'In Progress', 
+      count: taskCounts.inProgress, 
+      color: 'text-yellow-600 border-yellow-300 hover:border-yellow-400' 
+    },
+    { 
+      id: 'DONE' as const, 
+      name: 'Done', 
+      count: taskCounts.done, 
+      color: 'text-green-600 border-green-300 hover:border-green-400' 
+    },
+  ];
+
+  const getActiveTabColor = (tabId: string) => {
+    switch (tabId) {
+      case 'TODO':
+        return 'border-gray-500 text-gray-900 bg-gray-50';
+      case 'IN_PROGRESS':
+        return 'border-yellow-500 text-yellow-900 bg-yellow-50';
+      case 'DONE':
+        return 'border-green-500 text-green-900 bg-green-50';
+      default:
+        return 'border-gray-500 text-gray-900 bg-gray-50';
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm">
+      {/* Tab Headers */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`py-4 px-6 text-sm font-medium border-b-2 transition-all duration-200 ${
+                activeTab === tab.id
+                  ? getActiveTabColor(tab.id)
+                  : `text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300`
+              }`}
+            >
+              <span className="flex items-center space-x-2">
+                <span>{tab.name}</span>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  activeTab === tab.id 
+                    ? 'bg-white text-gray-900' 
+                    : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {tab.count}
+                </span>
+              </span>
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Tab Content */}
+      <div className="p-6">
+        {tasksByStatus[activeTab].length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-gray-400 text-4xl mb-4">
+              {activeTab === 'TODO' && '📝'}
+              {activeTab === 'IN_PROGRESS' && '⚡'}
+              {activeTab === 'DONE' && '✅'}
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No {tabs.find(t => t.id === activeTab)?.name.toLowerCase()} tasks
+            </h3>
+            <p className="text-gray-600">
+              {activeTab === 'TODO' && "Tasks you create will appear here"}
+              {activeTab === 'IN_PROGRESS' && "Tasks in progress will appear here"}
+              {activeTab === 'DONE' && "Completed tasks will appear here"}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {tasksByStatus[activeTab].map((task) => (
+              <div key={task.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-all duration-200">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex-1">
+                    <h3 className="text-sm font-medium text-gray-900 mb-1 line-clamp-2">{task.title}</h3>
+                    {task.taskId && (
+                      <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded mb-2 inline-block">
+                        #{task.taskId}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center space-x-1 ml-2">
+                    <button
+                      onClick={() => onEdit(task)}
+                      className="text-gray-400 hover:text-indigo-600 transition-colors duration-200 p-1"
+                      title="Edit task"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => onDelete(task.taskId)}
+                      className="text-gray-400 hover:text-red-600 transition-colors duration-200 p-1"
+                      title="Delete task"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                
+                <div>
+                  <p className="text-xs text-gray-600 mb-3 line-clamp-3">{task.description}</p>
+                  
+                  <div className="space-y-2">
+                    {task.assignee ? (
+                      <div className="flex items-center text-xs">
+                        <div className="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center mr-2">
+                          <span className="text-xs font-medium text-indigo-700">
+                            {task.assignee.name.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <span className={`truncate ${task.assignee.email === user?.email ? 'font-medium text-indigo-600' : 'text-gray-600'}`}>
+                          {task.assignee.name} {task.assignee.email === user?.email && '(You)'}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-xs italic text-gray-400">No assignee</span>
+                    )}
+                    
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                      {task.dueDate && (
+                        <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded">
+                          Due: {new Date(task.dueDate).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
+                        </span>
+                      )}
+                      <span>
+                        {new Date(task.createdAt).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const TasksPage: React.FC = () => {
   const { orgSlug, projectSlug } = useParams<{ orgSlug: string; projectSlug: string }>();
   const { isAuthenticated, user, logout } = useAuth();
@@ -227,7 +413,7 @@ const TasksPage: React.FC = () => {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [selectedAssignee, setSelectedAssignee] = useState<string>('');
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
-  const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
+  const [viewMode, setViewMode] = useState<'kanban' | 'tab'>('kanban');
   const formRef = useRef<HTMLFormElement>(null);
 
   const sensors = useSensors(
@@ -529,7 +715,12 @@ const TasksPage: React.FC = () => {
             <h2 className="text-2xl font-bold text-gray-900">
               Tasks - {currentProject.name}
             </h2>
-            <p className="text-gray-600">Drag and drop tasks to update their status</p>
+            <p className="text-gray-600">
+              {viewMode === 'kanban' 
+                ? 'Drag and drop tasks to update their status' 
+                : 'Click on tabs to view tasks by status'
+              }
+            </p>
           </div>
           <div className="flex items-center space-x-3">
             <div className="flex bg-gray-100 rounded-lg p-1">
@@ -544,9 +735,9 @@ const TasksPage: React.FC = () => {
                 Kanban
               </button>
               <button
-                onClick={() => setViewMode('list')}
+                onClick={() => setViewMode('tab')}
                 className={`px-3 py-1 text-sm font-medium rounded-md transition duration-200 ${
-                  viewMode === 'list' 
+                  viewMode === 'tab' 
                     ? 'bg-white text-gray-900 shadow-sm' 
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
@@ -563,80 +754,94 @@ const TasksPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Task Summary */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <div className="text-2xl font-bold text-gray-900">{taskCounts.all}</div>
-            <div className="text-sm text-gray-600">Total Tasks</div>
-          </div>
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <div className="text-2xl font-bold text-gray-600">{taskCounts.todo}</div>
-            <div className="text-sm text-gray-600">To Do</div>
-          </div>
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <div className="text-2xl font-bold text-yellow-600">{taskCounts.inProgress}</div>
-            <div className="text-sm text-gray-600">In Progress</div>
-          </div>
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <div className="text-2xl font-bold text-green-600">{taskCounts.done}</div>
-            <div className="text-sm text-gray-600">Done</div>
-          </div>
-        </div>
+        {/* Render based on view mode */}
+        {viewMode === 'kanban' ? (
+          <>
+            {/* Task Summary - only shown in kanban view */}
+            <div className="grid grid-cols-4 gap-4 mb-6">
+              <div className="bg-white p-4 rounded-lg border border-gray-200">
+                <div className="text-2xl font-bold text-gray-900">{taskCounts.all}</div>
+                <div className="text-sm text-gray-600">Total Tasks</div>
+              </div>
+              <div className="bg-white p-4 rounded-lg border border-gray-200">
+                <div className="text-2xl font-bold text-gray-600">{taskCounts.todo}</div>
+                <div className="text-sm text-gray-600">To Do</div>
+              </div>
+              <div className="bg-white p-4 rounded-lg border border-gray-200">
+                <div className="text-2xl font-bold text-yellow-600">{taskCounts.inProgress}</div>
+                <div className="text-sm text-gray-600">In Progress</div>
+              </div>
+              <div className="bg-white p-4 rounded-lg border border-gray-200">
+                <div className="text-2xl font-bold text-green-600">{taskCounts.done}</div>
+                <div className="text-sm text-gray-600">Done</div>
+              </div>
+            </div>
 
-        {/* Kanban Board */}
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="grid grid-cols-3 gap-6">
-            <KanbanColumn
-              title="To Do"
-              status="TODO"
-              tasks={tasksByStatus.TODO}
-              count={taskCounts.todo}
-              color={getStatusColor('TODO')}
-              user={user}
-              onEdit={handleEditTask}
-              onDelete={handleDeleteTask}
-            />
-            
-            <KanbanColumn
-              title="In Progress"
-              status="IN_PROGRESS"
-              tasks={tasksByStatus.IN_PROGRESS}
-              count={taskCounts.inProgress}
-              color={getStatusColor('IN_PROGRESS')}
-              user={user}
-              onEdit={handleEditTask}
-              onDelete={handleDeleteTask}
-            />
-            
-            <KanbanColumn
-              title="Done"
-              status="DONE"
-              tasks={tasksByStatus.DONE}
-              count={taskCounts.done}
-              color={getStatusColor('DONE')}
-              user={user}
-              onEdit={handleEditTask}
-              onDelete={handleDeleteTask}
-            />
-          </div>
+            {/* Kanban Board */}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCorners}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
+              <div className="grid grid-cols-3 gap-6">
+                <KanbanColumn
+                  title="To Do"
+                  status="TODO"
+                  tasks={tasksByStatus.TODO}
+                  count={taskCounts.todo}
+                  color={getStatusColor('TODO')}
+                  user={user}
+                  onEdit={handleEditTask}
+                  onDelete={handleDeleteTask}
+                />
+                
+                <KanbanColumn
+                  title="In Progress"
+                  status="IN_PROGRESS"
+                  tasks={tasksByStatus.IN_PROGRESS}
+                  count={taskCounts.inProgress}
+                  color={getStatusColor('IN_PROGRESS')}
+                  user={user}
+                  onEdit={handleEditTask}
+                  onDelete={handleDeleteTask}
+                />
+                
+                <KanbanColumn
+                  title="Done"
+                  status="DONE"
+                  tasks={tasksByStatus.DONE}
+                  count={taskCounts.done}
+                  color={getStatusColor('DONE')}
+                  user={user}
+                  onEdit={handleEditTask}
+                  onDelete={handleDeleteTask}
+                />
+              </div>
 
-          <DragOverlay>
-            {draggedTask ? (
-              <TaskCard
-                task={draggedTask}
-                user={user}
-                onEdit={() => {}}
-                onDelete={() => {}}
-                isDragging={true}
-              />
-            ) : null}
-          </DragOverlay>
-        </DndContext>
+              <DragOverlay>
+                {draggedTask ? (
+                  <TaskCard
+                    task={draggedTask}
+                    user={user}
+                    onEdit={() => {}}
+                    onDelete={() => {}}
+                    isDragging={true}
+                  />
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          </>
+        ) : (
+          /* Tab View */
+          <TabView
+            tasks={tasks}
+            user={user}
+            onEdit={handleEditTask}
+            onDelete={handleDeleteTask}
+            taskCounts={taskCounts}
+          />
+        )}
 
         {tasks.length === 0 && (
           <div className="text-center py-12 mt-8">
