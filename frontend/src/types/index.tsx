@@ -58,3 +58,15 @@ export interface AuthResponse {
   success: boolean;
   errors?: string[];
 }
+
+export interface OrganizationInput {
+  name: string;
+  slug: string;
+  contactEmail: string;  
+}
+
+export interface CreateOrganizationResponse {
+  success: boolean;
+  organization?: Organization;
+  errors?: string[];
+}

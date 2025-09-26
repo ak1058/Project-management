@@ -23,6 +23,21 @@ export const GET_MY_ORGANIZATIONS = gql`
   }
 `;
 
+export const CREATE_ORGANIZATION = gql`
+  mutation CreateOrganization($input: OrganizationInput!) {
+    createOrganization(input: $input) {
+      success
+      organization {
+        id
+        name
+        slug
+        contactEmail
+      }
+      errors
+    }
+  }
+`;
+
 export const GET_PROJECTS = gql`
   query GetProjects($orgSlug: String!) {
     projects(orgSlug: $orgSlug) {

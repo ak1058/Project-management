@@ -9,6 +9,8 @@ import ProjectsPage from './components/ProjectsPage';
 import TasksPage from './components/TasksPage';
 import { useAuth } from './hooks/useAuth';
 import TaskDetailPage from './components/TaskDetailPage';
+import CreateOrg from './components/CreateOrg';
+
 
 // Add a loading component
 const LoadingSpinner: React.FC = () => (
@@ -46,6 +48,7 @@ function AppContent() {
           <OrganizationDashboard />
         } 
       />
+      <Route path="/createorg" element={<CreateOrg />} />
       <Route 
         path="/dashboard" 
         element={
