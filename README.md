@@ -33,8 +33,15 @@ This system supports **organizations, projects, and task management** with a cle
 
 ## 🐳 Setup with Docker  
 
-Clone the repository and navigate to the project root, then run:  
-
+> ⚡ **Note:**First in the root docker-compose.yml, please set these variables according to your system
+```bash
+      POSTGRES_DB: project_management
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+```
+Clone the repository and navigate to the project root, then run: 
 ```bash
 docker-compose up --build
 ```
